@@ -1,13 +1,15 @@
 import leaflet from 'leaflet';
 import leafletImage from 'leaflet-image';
+import leafletGeometry from 'leaflet-geometryutil';
+import 'leaflet-polylinedecorator';
 import 'leaflet-providers';
 import 'leaflet-easybutton';
+import moment from 'moment';
 
 import * as ui from './ui';
 
 
-// Los Angeles is the center of the universe
-const INIT_COORDS = [34.0522, -118.243];
+const INIT_COORDS = [58.006224, 56.245257];
 
 
 const DEFAULT_OPTIONS = {
@@ -15,10 +17,11 @@ const DEFAULT_OPTIONS = {
     lineOptions: {
         color: '#0CB1E8',
         weight: 1,
-        opacity: 0.5,
-        smoothFactor: 1,
+        opacity: 0.7,
+        smoothFactor: 2,
         overrideExisting: true,
         detectColors: true,
+        renderer: L.canvas({ padding: 0, tolerance: 5 })
     },
     markerOptions: {
         color: '#00FF00',
@@ -27,7 +30,6 @@ const DEFAULT_OPTIONS = {
         opacity: 0.5
     }
 };
-
 
 export default class GpxMap {
     constructor(options) {
@@ -108,6 +110,18 @@ export default class GpxMap {
                 },
             }],
         }).addTo(this.map);
+        
+        this.saveAll = leaflet.easyButton({
+            type: 'animate',
+            states: [{
+                icon: 'fa-save fa-lg',
+                stateName: 'default',
+                title: 'Save all loaded tracks to one gpx file',
+                onClick: () => {
+                    ui.saveGpx(this.tracks);
+                },
+            }],
+        }).addTo(this.map);
 
         this.markScrolled = () => {
             this.map.removeEventListener('movestart', this.markScrolled);
@@ -116,6 +130,7 @@ export default class GpxMap {
 
         this.clearScroll();
         this.viewAll.disable();
+        this.saveAll.disable();
         this.switchTheme(this.options.theme);
         this.requestBrowserLocation();
     }
@@ -130,7 +145,11 @@ export default class GpxMap {
             this.mapTiles.removeFrom(this.map);
         }
 
-        this.mapTiles = leaflet.tileLayer.provider(themeName);
+        if (themeName.includes('Thunderforest')) {
+            this.mapTiles = leaflet.tileLayer.provider(themeName, {apikey: '651f93718cb04eb0a82dc09d103b22e6'});
+        } else {
+            this.mapTiles = leaflet.tileLayer.provider(themeName);
+        }
         this.mapTiles.addTo(this.map, {detectRetina: true});
     }
 
@@ -210,6 +229,7 @@ export default class GpxMap {
 
     addTrack(track) {
         this.viewAll.enable();
+        this.saveAll.enable();
         let lineOptions = Object.assign({}, this.options.lineOptions);
 
         if (lineOptions.detectColors) {
@@ -221,11 +241,53 @@ export default class GpxMap {
                 lineOptions.color = '#00ffff';
             }
         }
-
+        
         let line = leaflet.polyline(track.points, lineOptions);
+        let decorator = leaflet.polylineDecorator(line, {
+            patterns: [
+                {offset: 0, repeat: 0, symbol: L.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
+            ]
+        }).addTo(this.map);
         line.addTo(this.map);
+        
+        line.on('mouseover', function() {
+            decorator.setPatterns([
+                {offset: 400, repeat: 400, symbol: L.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 1, color: 'red'}})}
+            ]);
+            this.setStyle({
+                color: 'red',
+                weight: 3,
+                opacity: 1.0
+            });
+            this.bringToFront();
+        });
+        line.on('mouseout', function() {
+            decorator.setPatterns([
+                {offset: 0, repeat: 0, symbol: L.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
+            ]);
+            this.setStyle(lineOptions);
+        });
 
-        this.tracks.push(Object.assign({line, visible: true}, track));
+        track = Object.assign({line, visible: true}, track);
+        this.tracks.push(track);
+        
+        this.refreshTrackTooltip(track);
+		
+		return track;
+    }
+    
+    refreshTrackTooltip(track) {
+        let length = (leafletGeometry.length(track.line) / 1000).toFixed(1);
+        let tooltip = "<strong>" + track.name + '</strong>';
+        if (track.points[0].time) tooltip += "<br>Дата: " + moment(track.points[0].time).format("DD.MM.YYYY HH:mm:ss");
+        if (track.date) tooltip += "<br>Дата: " + track.date;
+        tooltip += '<br>Расстояние: ' + length + ' км';
+        if (track.desc) tooltip += track.desc;
+        if (track.type) tooltip += "<br>" + track.type + (track.equipment ? ": " + track.equipment : "");
+        if (track.totaltime) tooltip += "<br>Длительность: " + moment.utc(track.totaltime*1000).format("H:mm");
+        if (track.totalElev) tooltip += "<br>Общий подъем: " + track.totalElev + " м";
+        if (track.elevMap) tooltip += "<br><img src='" + track.elevMap + "'>";
+        track.line.bindTooltip(tooltip, {sticky: true});
     }
 
     async markerClick(image) {

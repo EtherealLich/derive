@@ -1,47 +1,48 @@
 import 'babel-polyfill';
 import picoModal from 'picomodal';
-import extractTracks from './track';
+import {extractTracks, extractTracksUrl, createGpx, extractStravaCsv} from './track';
 import Image from './image';
+import leafletGeometry from 'leaflet-geometryutil';
 
 const AVAILABLE_THEMES = [
     'CartoDB.DarkMatter',
     'CartoDB.DarkMatterNoLabels',
     'CartoDB.Positron',
     'CartoDB.PositronNoLabels',
+    'CartoDB.Voyager',
+    'Esri.WorldStreetMap',
     'Esri.WorldImagery',
     'OpenStreetMap.Mapnik',
-    'OpenStreetMap.BlackAndWhite',
+    'OpenStreetMap.HOT',
     'OpenTopoMap',
     'Stamen.Terrain',
-    'Stamen.TerrainBackground',
     'Stamen.Toner',
     'Stamen.TonerLite',
     'Stamen.TonerBackground',
     'Stamen.Watercolor',
+    'Thunderforest.OpenCycleMap',
+    'Thunderforest.SpinalMap',
+    'OpenMapSurfer.Roads',
+    'Hydda.Full',
+    'CyclOSM',
+    'HikeBike.HikeBike',
+    'Wikimedia'
 ];
 
 const MODAL_CONTENT = {
     help: `
-<h1>dérive</h1>
-<h4>Drag and drop one or more GPX/TCX/FIT files or JPEG images here.</h4>
-<p>If you use Strava, go to your
-<a href="https://www.strava.com/athlete/delete_your_account">account download
-page</a> and click "Request your archive". You'll get an email containing a ZIP
-file of all the GPS tracks you've logged so far. This can take several hours.
+<h1>Интерактивная карта PIN-MIX-PERM</h1>
+<h4>Перетащите сюда GPX/TCX/FIT файлы для отображения их на карте</h4>
+<p>Если вы используете Strava файлы можно выгрузить оттуда по одному или архивом всех активностей.</p>
+
+<p>Вся обработка происходит в вашем браузере, ничего не передается и не сохраняется на сервере.</p>
+    
+<p>
+    <a href="/map/?map=2018.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2018 год</a><br/>
+    <a href="/map/?map=2019.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2019 год</a>
 </p>
 
-<p>All processing happens in your browser. Your files will not be uploaded or
-stored anywhere.</p>
-
-<blockquote>
-In a dérive one or more persons during a certain period drop their
-relations, their work and leisure activities, and all their other
-usual motives for movement and action, and let themselves be drawn by
-the attractions of the terrain and the encounters they find there.<cite><a
-href="http://library.nothingness.org/articles/SI/en/display/314">[1]</a></cite>
-</blockquote>
-
-<p>Code is available <a href="https://github.com/erik/derive">on GitHub</a>.</p>
+<p>Приложение базируется на коде Erik Price доступном на <a href="https://github.com/erik/derive">GitHub</a>.</p>
 `,
 
     exportImage: `
@@ -86,16 +87,51 @@ function handleFileSelect(map, evt) {
     };
 
     const handleTrackFile = async (file) => {
+        let csv = [];
         for (const track of await extractTracks(file)) {
             track.filename = file.name;
             tracks.push(track);
-            map.addTrack(track);
+            track = map.addTrack(track);
             modal.addSuccess();
+            
+            console.log(track.line);
+            csv.push({
+                'name': track.name,
+                'date': track.date,
+                'elev': track.totalElev,
+                'distance': (leafletGeometry.length(track.line) / 1000).toFixed(1),
+                'url': track.gpsiesUrl
+            });
         }
+        let result = "";
+        for (const row of csv) {
+            result += Object.keys(row).map(k => '"' + row[k] + '"').join(";") + "\n";
+        }
+        console.log(result);
+    };
+    
+    const handleStravaCsv = async (file) => {
+        const activities = await extractStravaCsv(file);
+
+        for(const track of map.tracks) {
+            let trackactivities = activities.filter(activity => activity["Название файла"].includes(track.filename) || (track.src && activity["Название файла"].includes(track.src)));
+            if (trackactivities.length > 0) {
+                track["name"] = trackactivities.map(activity => activity["Название тренировки"]).join(' + ');
+                track["equipment"] = trackactivities[0]["Снаряжение для физической активности"];
+                track["totaltime"] = trackactivities.map(activity => activity["Общее время"]).reduce((a, b) => a + b, 0);
+                track["type"] = trackactivities[0]["Тип активности"];
+                map.refreshTrackTooltip(track);
+            }
+        }
+
+        modal.addSuccess();
     };
 
     const handleFile = async file => {
         try {
+            if (/\.csv$/i.test(file.name)) {
+                return await handleStravaCsv(file);
+            }
             if (/\.jpe?g$/i.test(file.name)) {
                 return await handleImage(file);
             }
@@ -387,8 +423,9 @@ export function showModal(type) {
 }
 
 
-export function initialize(map) {
-    let modal = showModal('help');
+export function initialize(map, showHelp) {
+    let modal;
+    if (showHelp) modal = showModal('help');
 
     window.addEventListener('dragover', handleDragOver, false);
 
@@ -399,4 +436,41 @@ export function initialize(map) {
         }
         handleFileSelect(map, e);
     }, false);
+}
+
+export function loadgpx(map, url) {
+    let modal = buildUploadModal(1);
+    modal.show();
+    const track = extractTracksUrl(url)
+        .then(tracks => {
+            for (const track of tracks) {
+                track.filename = url;
+                map.addTrack(track);
+                modal.addSuccess();
+            }
+            modal.finished();
+            map.center();
+        });
+}
+
+export function saveGpx(tracks) {
+    download(createGpx(tracks), 'all.gpx', "application/gpx+xml");
+}
+
+function download(data, filename, type) {
+    var file = new Blob([data], {type: type});
+    if (window.navigator.msSaveOrOpenBlob) // IE10+
+        window.navigator.msSaveOrOpenBlob(file, filename);
+    else { // Others
+        var a = document.createElement("a"),
+                url = URL.createObjectURL(file);
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);  
+        }, 0); 
+    }
 }
