@@ -281,7 +281,6 @@ export default class GpxMap {
         
         this.refreshTrackTooltip(track);
         
-        console.log(track);
         let tracklink = document.createElement('li');
         if (track.date) {
             tracklink.innerText = track.date + " " + track.name;
