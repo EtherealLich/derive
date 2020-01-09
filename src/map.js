@@ -1,11 +1,11 @@
 import leaflet from 'leaflet';
 import leafletImage from 'leaflet-image';
 import leafletGeometry from 'leaflet-geometryutil';
-import leafletSidebar from 'leaflet-sidebar-v2';
 import 'leaflet-polylinedecorator';
 import 'leaflet-providers';
 import 'leaflet-easybutton';
 import moment from 'moment';
+import 'leaflet-sidebar-v2';
 
 import * as ui from './ui';
 
@@ -125,7 +125,7 @@ export default class GpxMap {
         }).addTo(this.map);
         
         this.sidebar = leaflet.control.sidebar({
-            autopan: false,       // whether to maintain the centered map point when opening the sidebar
+            autopan: true,       // whether to maintain the centered map point when opening the sidebar
             closeButton: true,    // whether t add a close button to the panes
             container: 'sidebar', // the DOM container or #ID of a predefined sidebar container that should be used
             position: 'right',     // left or right
@@ -275,6 +275,11 @@ export default class GpxMap {
             ]);
             this.setStyle(lineOptions);
         });
+        
+        line.on('click', function() {
+            let offset = document.querySelector('.leaflet-sidebar-content').getBoundingClientRect().width;
+            map.fitBounds(line.getBounds(), {paddingBottomRight: [offset, 0]});
+        });
 
         track = Object.assign({line, visible: true}, track);
         this.tracks.push(track);
@@ -310,9 +315,9 @@ export default class GpxMap {
         });
         let map = this.map;
         tracklink.addEventListener('click', function() {
-            map.fitBounds(line.getBounds());
+            let offset = document.querySelector('.leaflet-sidebar-content').getBoundingClientRect().width;
+            map.fitBounds(line.getBounds(), {paddingBottomRight: [offset, 0]});
         });
-        
         
         document.getElementById('tracklist').appendChild(tracklink);
 
