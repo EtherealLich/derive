@@ -1,12 +1,22 @@
 import '../style.css';
+import '../sidebar.css';
 
 import GpxMap from './map';
-import {initialize} from './ui';
+import {initialize, loadgpx} from './ui';
 
 
 function app() {
     let map = new GpxMap();
-    initialize(map);
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('map')) {
+        loadgpx(map, urlParams.get('map'));
+    }
+    initialize(map, !urlParams.get('map'));
+    if (urlParams.get('theme')) {
+        var theme = urlParams.get('theme');
+        map.options.theme = theme;
+        map.switchTheme(theme);
+    }
 }
 
 

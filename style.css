@@ -66,3 +66,12 @@ ul.failures {
     padding-top: 1em;
     padding-bottom: 1em;
 }
+
+ul#tracklist > li {
+    cursor: pointer;
+}
+
+ul#tracklist > li:hover {
+    color: #000;
+    background-color: #eee; 
+}
