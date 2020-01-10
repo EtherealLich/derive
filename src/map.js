@@ -55,25 +55,49 @@ export default class GpxMap {
             position: 'left',     // left or right
         }).addTo(this.map);
         
-        this.sidebar.addPanel({
-            id: 'exportpng',
-            tab: '<i class="fa fa-camera fa-lg"></i>',
-            title: 'Export as png',
+        this.viewAll = this.sidebar.addPanel({
+            id: 'viewall',
+            tab: '<i class="fa fa-map fa-lg"></i>',
+            title: 'Zoom to all tracks',
             button: () => {
-                let modal = ui.showModal('exportImage')
-                    .afterClose(() => modal.destroy());
-
-                document.getElementById('render-export').onclick = (e) => {
-                    e.preventDefault();
-
-                    let output = document.getElementById('export-output');
-                    output.innerHTML = 'Rendering <i class="fa fa-cog fa-spin"></i>';
-
-                    let form = document.getElementById('export-settings').elements;
-                    this.screenshot(form.format.value, output);
-                };
-            }
+                this.center();
+            },
+            disabled: true
         });
+        
+        this.sidebar.addPanel({
+            id: 'tools',
+            tab: '<i class="fa fa-wrench fa-lg"></i>',
+            title: 'Инструменты',
+            pane: 
+            `<div>
+                <h2>Загрузить трек из массива точек</h2>
+                <input type="text" id="addTrackFromPointsName" placeholder="Название маршрута" style="padding:5px;margin:5px;"><br/>
+                <textarea style="padding:5px;margin:5px;" rows="5" cols="50" wrap="on" id="addTrackFromPointsArray" placeholder="[[lat, lng],[lat, lng],...]"></textarea><br/>
+                <button class="btn" id="buttonAddTrackFromPoints"><i class="fa fa-plus fa-lg"></i> Добавить</button>
+                <hr/>
+                <button id="buttonExportAsPng" class="btn"><i class="fa fa-camera fa-lg"></i> Export PNG</button> <button id="buttonSaveAll" class="btn"><i class="fa fa-map fa-lg"></i> Export GPX</button>
+            </div>`,
+        });
+        
+        document.getElementById('buttonExportAsPng').onclick = (e) => {
+            let modal = ui.showModal('exportImage')
+                .afterClose(() => modal.destroy());
+
+            document.getElementById('render-export').onclick = (e) => {
+                e.preventDefault();
+
+                let output = document.getElementById('export-output');
+                output.innerHTML = 'Rendering <i class="fa fa-cog fa-spin"></i>';
+
+                let form = document.getElementById('export-settings').elements;
+                this.screenshot(form.format.value, output);
+            };
+        };
+        
+        document.getElementById('buttonSaveAll').onclick = (e) => {
+            ui.saveGpx(this.tracks);
+        };
         
         this.sidebar.addPanel({
             id: 'settings',
@@ -96,26 +120,6 @@ export default class GpxMap {
                     this.applyFilters();
                 }).show();
             }
-        });
-        
-        this.viewAll = this.sidebar.addPanel({
-            id: 'viewall',
-            tab: '<i class="fa fa-map fa-lg"></i>',
-            title: 'Zoom to all tracks',
-            button: () => {
-                this.center();
-            },
-            disabled: true
-        });
-        
-        this.saveAll = this.sidebar.addPanel({
-            id: 'saveall',
-            tab: '<i class="fa fa-save fa-lg"></i>',
-            title: 'Save all loaded tracks to one gpx file',
-            button: () => {
-                ui.saveGpx(this.tracks);
-            },
-            disabled: true
         });
         
         this.sidebar.addPanel({
@@ -155,9 +159,27 @@ export default class GpxMap {
             id: "tracklistpanel",
             title: "Список треков",
             tab: '<i class="fa fa-bars fa-lg"></i>',
-            pane: '<ul id="tracklist"></ul>',
+            pane: '<table id="tracklist"><tr><thead><th>Дата</th><th>Название</th><th>Дистанция</th><th>Подъем</th></tr></thead><tbody></tbody></table>',
             position: "bottom"
         });
+        
+        document.getElementById('buttonAddTrackFromPoints').onclick = (e) => {
+            e.preventDefault();
+
+            let data = JSON.parse(document.getElementById('addTrackFromPointsArray').value);
+            
+            let points = [];
+            data.forEach(a => points.push({
+                lat: parseFloat(a[1]),
+                lng: parseFloat(a[0])
+            }));
+            let track = {
+                name: document.getElementById('addTrackFromPointsName').value,
+                points: points
+            }
+            
+            this.addTrack(track);
+        };
 
         this.markScrolled = () => {
             this.map.removeEventListener('movestart', this.markScrolled);
@@ -263,7 +285,6 @@ export default class GpxMap {
 
     addTrack(track) {
         this.sidebar.enablePanel('viewall');
-        this.sidebar.enablePanel('saveall');
         let lineOptions = Object.assign({}, this.options.lineOptions);
 
         if (lineOptions.detectColors) {
@@ -312,42 +333,64 @@ export default class GpxMap {
         
         this.refreshTrackTooltip(track);
         
-        let tracklink = document.createElement('li');
-        if (track.date) {
-            tracklink.innerText = track.date + " " + track.name;
-        } else {
-            tracklink.innerText = moment(track.points[0].time).format("DD.MM.YYYY HH:mm:ss") + " " + track.name;
-        }
-        tracklink.classList.add("tracklink");
+        this.addTrackToList(track);
+
+        return track;
+    }
+    
+    addTrackToList(track) {
+        let trackrow = document.createElement('tr');
         
-        tracklink.addEventListener('mouseover', function() {
-            decorator.setPatterns([
+        let trackdate = document.createElement('td');
+        
+        if (track.date) {
+            trackdate.innerText = track.date ;
+        } else {
+            trackdate.innerText = moment(track.points[0].time).format("DD.MM.YYYY HH:mm:ss");
+        }
+        
+        let trackname = document.createElement('td');
+        trackname.innerText = track.name;
+        
+        let tracklength = document.createElement('td');
+        tracklength.innerText = (leafletGeometry.length(track.line) / 1000).toFixed(1) + " км";
+        tracklength.classList.add("nowrap");
+        
+        let trackheight = document.createElement('td');
+        trackheight.innerText = track.totalElev + " м";
+        trackheight.classList.add("nowrap");
+        
+        trackrow.appendChild(trackdate);
+        trackrow.appendChild(trackname);
+        trackrow.appendChild(tracklength);
+        trackrow.appendChild(trackheight);
+        
+        trackrow.addEventListener('mouseover', () => {
+            track.decorator.setPatterns([
                 {offset: 400, repeat: 400, symbol: L.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 1, color: 'red'}})}
             ]);
-            line.setStyle({
+            track.line.setStyle({
                 color: 'red',
                 weight: 3,
                 opacity: 1.0
             });
-            line.bringToFront();
-            line.openTooltip();
+            track.line.bringToFront();
+            track.line.openTooltip();
         });
-        tracklink.addEventListener('mouseout', function() {
-            decorator.setPatterns([
+        trackrow.addEventListener('mouseout', () => {
+            track.decorator.setPatterns([
                 {offset: 0, repeat: 0, symbol: L.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
             ]);
-            line.setStyle(lineOptions);
-            line.closeTooltip();
+            track.line.setStyle(this.options.lineOptions);
+            track.line.closeTooltip();
         });
         let map = this.map;
-        tracklink.addEventListener('click', function() {
+        trackrow.addEventListener('click', function() {
             let offset = document.querySelector('.leaflet-sidebar-content').getBoundingClientRect().width;
-            map.fitBounds(line.getBounds(), {paddingTopLeft: [offset, 0]});
+            map.fitBounds(track.line.getBounds(), {paddingTopLeft: [offset, 0]});
         });
         
-        document.getElementById('tracklist').appendChild(tracklink);
-
-        return track;
+        document.getElementById('tracklist').getElementsByTagName('tbody')[0].appendChild(trackrow);
     }
     
     refreshTrackTooltip(track) {
@@ -509,7 +552,7 @@ export default class GpxMap {
     }
     
     clearMap() {
-        document.getElementById("tracklist").innerHTML = "";
+        document.getElementById('tracklist').getElementsByTagName('tbody')[0].innerHTML = '';
         this.tracks.forEach(track => {
             track.line.remove();
             track.decorator.remove();
