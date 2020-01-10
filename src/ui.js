@@ -38,9 +38,9 @@ const MODAL_CONTENT = {
 <p>Вся обработка происходит в вашем браузере, ничего не передается и не сохраняется на сервере.</p>
     
 <p>
-    <a href="/map/?map=2017.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2017 год</a><br/>
-    <a href="/map/?map=2018.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2018 год</a><br/>
-    <a href="/map/?map=2019.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2019 год</a>
+    <a href="?map=2017.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2017 год</a><br/>
+    <a href="?map=2018.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2018 год</a><br/>
+    <a href="?map=2019.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2019 год</a>
 </p>
 
 <p>Приложение базируется на коде Erik Price доступном на <a href="https://github.com/erik/derive">GitHub</a>.</p>

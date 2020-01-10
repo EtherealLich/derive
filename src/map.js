@@ -47,89 +47,117 @@ export default class GpxMap {
             zoom: 10,
             preferCanvas: true,
         });
-
-        leaflet.easyButton({
-            type: 'animate',
-            states: [{
-                icon: 'fa-camera fa-lg',
-                stateName: 'default',
-                title: 'Export as png',
-                onClick: () => {
-                    let modal = ui.showModal('exportImage')
-                        .afterClose(() => modal.destroy());
-
-                    document.getElementById('render-export').onclick = (e) => {
-                        e.preventDefault();
-
-                        let output = document.getElementById('export-output');
-                        output.innerHTML = 'Rendering <i class="fa fa-cog fa-spin"></i>';
-
-                        let form = document.getElementById('export-settings').elements;
-                        this.screenshot(form.format.value, output);
-                    };
-                }
-            }]
-        }).addTo(this.map);
-
-        leaflet.easyButton({
-            type: 'animate',
-            states: [{
-                icon: 'fa-sliders fa-lg',
-                stateName: 'default',
-                title: 'Open settings dialog',
-                onClick: () => {
-                    ui.buildSettingsModal(this.tracks, this.options, (opts) => {
-                        this.updateOptions(opts);
-                    }).show();
-                },
-            }],
-        }).addTo(this.map);
-
-        leaflet.easyButton({
-            type: 'animate',
-            states: [{
-                icon: 'fa-filter fa-lg',
-                stateName: 'default',
-                title: 'Filter displayed tracks',
-                onClick: () => {
-                    ui.buildFilterModal(this.tracks, this.filters, (f) => {
-                        this.filters = f;
-                        this.applyFilters();
-                    }).show();
-                }
-            }]
-        }).addTo(this.map);
-
-        this.viewAll = leaflet.easyButton({
-            type: 'animate',
-            states: [{
-                icon: 'fa-map fa-lg',
-                stateName: 'default',
-                title: 'Zoom to all tracks',
-                onClick: () => {
-                    this.center();
-                },
-            }],
-        }).addTo(this.map);
-        
-        this.saveAll = leaflet.easyButton({
-            type: 'animate',
-            states: [{
-                icon: 'fa-save fa-lg',
-                stateName: 'default',
-                title: 'Save all loaded tracks to one gpx file',
-                onClick: () => {
-                    ui.saveGpx(this.tracks);
-                },
-            }],
-        }).addTo(this.map);
         
         this.sidebar = leaflet.control.sidebar({
             autopan: true,       // whether to maintain the centered map point when opening the sidebar
             closeButton: true,    // whether t add a close button to the panes
             container: 'sidebar', // the DOM container or #ID of a predefined sidebar container that should be used
-            position: 'right',     // left or right
+            position: 'left',     // left or right
         }).addTo(this.map);
+        
+        this.sidebar.addPanel({
+            id: 'exportpng',
+            tab: '<i class="fa fa-camera fa-lg"></i>',
+            title: 'Export as png',
+            button: () => {
+                let modal = ui.showModal('exportImage')
+                    .afterClose(() => modal.destroy());
+
+                document.getElementById('render-export').onclick = (e) => {
+                    e.preventDefault();
+
+                    let output = document.getElementById('export-output');
+                    output.innerHTML = 'Rendering <i class="fa fa-cog fa-spin"></i>';
+
+                    let form = document.getElementById('export-settings').elements;
+                    this.screenshot(form.format.value, output);
+                };
+            }
+        });
+        
+        this.sidebar.addPanel({
+            id: 'settings',
+            tab: '<i class="fa fa-sliders fa-lg"></i>',
+            title: 'Open settings dialog',
+            button: () => {
+                ui.buildSettingsModal(this.tracks, this.options, (opts) => {
+                    this.updateOptions(opts);
+                }).show();
+            }
+        });
+        
+        this.sidebar.addPanel({
+            id: 'filtertracks',
+            tab: '<i class="fa fa-filter fa-lg"></i>',
+            title: 'Filter displayed tracks',
+            button: () => {
+                ui.buildFilterModal(this.tracks, this.filters, (f) => {
+                    this.filters = f;
+                    this.applyFilters();
+                }).show();
+            }
+        });
+        
+        this.viewAll = this.sidebar.addPanel({
+            id: 'viewall',
+            tab: '<i class="fa fa-map fa-lg"></i>',
+            title: 'Zoom to all tracks',
+            button: () => {
+                this.center();
+            },
+            disabled: true
+        });
+        
+        this.saveAll = this.sidebar.addPanel({
+            id: 'saveall',
+            tab: '<i class="fa fa-save fa-lg"></i>',
+            title: 'Save all loaded tracks to one gpx file',
+            button: () => {
+                ui.saveGpx(this.tracks);
+            },
+            disabled: true
+        });
+        
+        this.sidebar.addPanel({
+            id: "routes2017",
+            title: "Маршруты за 2017 год",
+            tab: "<small>2017</small>",
+            button: () => {
+                this.clearMap();
+                ui.loadgpx(this, "2017.gpx");
+            },
+            position: "bottom"
+        });
+        
+        this.sidebar.addPanel({
+            id: "routes2018",
+            title: "Маршруты за 2018 год",
+            tab: "<small>2018</small>",
+            button: () => {
+                this.clearMap();
+                ui.loadgpx(this, "2018.gpx");
+            },
+            position: "bottom"
+        });
+        
+        this.sidebar.addPanel({
+            id: "routes2019",
+            title: "Маршруты за 2019 год",
+            tab: "<small>2019</small>",
+            button: () => {
+                this.clearMap();
+                ui.loadgpx(this, "2019.gpx");
+            },
+            position: "bottom"
+        });
+        
+        this.sidebar.addPanel({
+            id: "tracklistpanel",
+            title: "Список треков",
+            tab: '<i class="fa fa-bars fa-lg"></i>',
+            pane: '<ul id="tracklist"></ul>',
+            position: "bottom"
+        });
 
         this.markScrolled = () => {
             this.map.removeEventListener('movestart', this.markScrolled);
@@ -137,8 +165,6 @@ export default class GpxMap {
         };
 
         this.clearScroll();
-        this.viewAll.disable();
-        this.saveAll.disable();
         this.switchTheme(this.options.theme);
         this.requestBrowserLocation();
     }
@@ -236,8 +262,8 @@ export default class GpxMap {
     }
 
     addTrack(track) {
-        this.viewAll.enable();
-        this.saveAll.enable();
+        this.sidebar.enablePanel('viewall');
+        this.sidebar.enablePanel('saveall');
         let lineOptions = Object.assign({}, this.options.lineOptions);
 
         if (lineOptions.detectColors) {
@@ -278,10 +304,10 @@ export default class GpxMap {
         
         line.on('click', function() {
             let offset = document.querySelector('.leaflet-sidebar-content').getBoundingClientRect().width;
-            map.fitBounds(line.getBounds(), {paddingBottomRight: [offset, 0]});
+            map.fitBounds(line.getBounds(), {paddingTopLeft: [offset, 0]});
         });
 
-        track = Object.assign({line, visible: true}, track);
+        track = Object.assign({line, visible: true, decorator}, track);
         this.tracks.push(track);
         
         this.refreshTrackTooltip(track);
@@ -316,7 +342,7 @@ export default class GpxMap {
         let map = this.map;
         tracklink.addEventListener('click', function() {
             let offset = document.querySelector('.leaflet-sidebar-content').getBoundingClientRect().width;
-            map.fitBounds(line.getBounds(), {paddingBottomRight: [offset, 0]});
+            map.fitBounds(line.getBounds(), {paddingTopLeft: [offset, 0]});
         });
         
         document.getElementById('tracklist').appendChild(tracklink);
@@ -480,5 +506,14 @@ export default class GpxMap {
                 domNode.appendChild(link);
             }
         });
+    }
+    
+    clearMap() {
+        document.getElementById("tracklist").innerHTML = "";
+        this.tracks.forEach(track => {
+            track.line.remove();
+            track.decorator.remove();
+        });
+        this.tracks = []
     }
 }
