@@ -1,5 +1,6 @@
 import '../style.css';
 import '../sidebar.css';
+import '../vis-timeline-graph2d.css';
 
 import GpxMap from './map';
 import {initialize, loadgpx} from './ui';
@@ -9,7 +10,7 @@ function app() {
     let map = new GpxMap();
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('map')) {
-        loadgpx(map, urlParams.get('map'));
+        loadgpx(map, urlParams.get('map')).then(() =>map.fitTimelineRange());
     }
     initialize(map, !urlParams.get('map'));
     if (urlParams.get('theme')) {

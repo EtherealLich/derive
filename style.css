@@ -14,8 +14,17 @@ a {
     position: absolute;
     top: 0;
     right: 0;
-    bottom: 0;
+    bottom: 120px;
     left: 0;
+    z-index: -1;
+}
+
+#timeline { 
+    height: 120px; 
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: -1;
 }
 

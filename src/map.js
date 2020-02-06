@@ -6,6 +6,7 @@ import 'leaflet-providers';
 import 'leaflet-easybutton';
 import moment from 'moment';
 import 'leaflet-sidebar-v2';
+import vis from 'vis-timeline'
 
 import * as ui from './ui';
 
@@ -65,20 +66,38 @@ export default class GpxMap {
             disabled: true
         });
         
+        let themes = ui.AVAILABLE_THEMES.map(t => {
+            let selected = (t === this.options.theme) ? 'selected' : '';
+            return `<option ${selected} value="${t}">${t}</option>`;
+        });
+        
         this.sidebar.addPanel({
             id: 'tools',
             tab: '<i class="fa fa-wrench fa-lg"></i>',
             title: 'Инструменты',
             pane: 
             `<div>
+                <span class="form-row">
+                    <label>Карта</label>
+                    <select name="theme" id="switchTheme" style="padding:5px;margin:5px;">
+                        ${themes}
+                    </select>
+                </span>
+                <hr/>
+                <button id="buttonExportAsPng" class="btn"><i class="fa fa-camera fa-lg"></i> Export PNG</button> <button id="buttonSaveAll" class="btn"><i class="fa fa-map fa-lg"></i> Export GPX</button>
+                <hr/>
                 <h2>Загрузить трек из массива точек</h2>
                 <input type="text" id="addTrackFromPointsName" placeholder="Название маршрута" style="padding:5px;margin:5px;"><br/>
                 <textarea style="padding:5px;margin:5px;" rows="5" cols="50" wrap="on" id="addTrackFromPointsArray" placeholder="[[lat, lng],[lat, lng],...]"></textarea><br/>
                 <button class="btn" id="buttonAddTrackFromPoints"><i class="fa fa-plus fa-lg"></i> Добавить</button>
-                <hr/>
-                <button id="buttonExportAsPng" class="btn"><i class="fa fa-camera fa-lg"></i> Export PNG</button> <button id="buttonSaveAll" class="btn"><i class="fa fa-map fa-lg"></i> Export GPX</button>
+                
             </div>`,
         });
+        
+        document.getElementById('switchTheme').onchange = (e) => {
+            this.options.theme = e.target.value;
+            this.switchTheme(this.options.theme);
+        };
         
         document.getElementById('buttonExportAsPng').onclick = (e) => {
             let modal = ui.showModal('exportImage')
@@ -126,9 +145,10 @@ export default class GpxMap {
             id: "routes2017",
             title: "Маршруты за 2017 год",
             tab: "<small>2017</small>",
-            button: () => {
+            button: async () => {
                 this.clearMap();
-                ui.loadgpx(this, "2017.gpx");
+                await ui.loadgpx(this, "2017.gpx");
+                this.fitTimelineRange();
             },
             position: "bottom"
         });
@@ -137,9 +157,10 @@ export default class GpxMap {
             id: "routes2018",
             title: "Маршруты за 2018 год",
             tab: "<small>2018</small>",
-            button: () => {
+            button: async () => {
                 this.clearMap();
-                ui.loadgpx(this, "2018.gpx");
+                await ui.loadgpx(this, "2018.gpx");
+                this.fitTimelineRange();
             },
             position: "bottom"
         });
@@ -148,9 +169,22 @@ export default class GpxMap {
             id: "routes2019",
             title: "Маршруты за 2019 год",
             tab: "<small>2019</small>",
-            button: () => {
+            button: async () => {
                 this.clearMap();
-                ui.loadgpx(this, "2019.gpx");
+                await ui.loadgpx(this, "2019.gpx");
+                this.fitTimelineRange();
+            },
+            position: "bottom"
+        });
+        
+        this.sidebar.addPanel({
+            id: "routes2019",
+            title: "Маршруты за 2020 год",
+            tab: "<small>2020</small>",
+            button: async () => {
+                this.clearMap();
+                await ui.loadgpx(this, "2020.gpx");
+                this.fitTimelineRange();
             },
             position: "bottom"
         });
@@ -189,6 +223,23 @@ export default class GpxMap {
         this.clearScroll();
         this.switchTheme(this.options.theme);
         this.requestBrowserLocation();
+        
+        var container = document.getElementById('timeline-vis');
+
+        this.visitems = new vis.DataSet();
+        this.timeline = new vis.Timeline(container, this.visitems, {width: '100%', height: '120px', stack: false});
+        
+        this.timeline.on('select', (properties) => {
+            this.centerTrack(this.visitems.get(properties.items[0]).track);
+        });
+        
+        this.timeline.on('itemover', (properties) => {
+            this.selectTrack(this.visitems.get(properties.item).track);
+        });
+        
+        this.timeline.on('itemout', (properties) => {
+            this.unselectAllTracks();
+        });
     }
 
     clearScroll() {
@@ -305,35 +356,16 @@ export default class GpxMap {
         }).addTo(this.map);
         line.addTo(this.map);
         
-        line.on('mouseover', function() {
-            decorator.setPatterns([
-                {offset: 400, repeat: 400, symbol: L.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 1, color: 'red'}})}
-            ]);
-            this.setStyle({
-                color: 'red',
-                weight: 3,
-                opacity: 1.0
-            });
-            this.bringToFront();
-        });
-        line.on('mouseout', function() {
-            decorator.setPatterns([
-                {offset: 0, repeat: 0, symbol: L.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
-            ]);
-            this.setStyle(lineOptions);
-        });
-        
-        line.on('click', function() {
-            let offset = document.querySelector('.leaflet-sidebar-content').getBoundingClientRect().width;
-            map.fitBounds(line.getBounds(), {paddingTopLeft: [offset, 0]});
-        });
-
         track = Object.assign({line, visible: true, decorator}, track);
+        
+        line.on('mouseover', () => this.selectTrack(track));
+        line.on('mouseout', () => this.unselectTrack(track));
+        line.on('click', () => this.centerTrack(track));
+
         this.tracks.push(track);
-        
         this.refreshTrackTooltip(track);
-        
         this.addTrackToList(track);
+        this.addTrackToTimeline(track)
 
         return track;
     }
@@ -342,12 +374,9 @@ export default class GpxMap {
         let trackrow = document.createElement('tr');
         
         let trackdate = document.createElement('td');
-        
-        if (track.date) {
-            trackdate.innerText = track.date ;
-        } else {
-            trackdate.innerText = moment(track.points[0].time).format("DD.MM.YYYY HH:mm:ss");
-        }
+        trackdate.innerText = (track.starttime)
+            ? moment(track.starttime).format("DD.MM.YYYY HH:mm:ss")
+            : track.date;
         
         let trackname = document.createElement('td');
         trackname.innerText = track.name;
@@ -357,7 +386,7 @@ export default class GpxMap {
         tracklength.classList.add("nowrap");
         
         let trackheight = document.createElement('td');
-        trackheight.innerText = track.totalElev + " м";
+        trackheight.innerText = track.totalElev.toFixed(0) + " м";
         trackheight.classList.add("nowrap");
         
         trackrow.appendChild(trackdate);
@@ -365,46 +394,85 @@ export default class GpxMap {
         trackrow.appendChild(tracklength);
         trackrow.appendChild(trackheight);
         
-        trackrow.addEventListener('mouseover', () => {
-            track.decorator.setPatterns([
-                {offset: 400, repeat: 400, symbol: L.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 1, color: 'red'}})}
-            ]);
-            track.line.setStyle({
-                color: 'red',
-                weight: 3,
-                opacity: 1.0
-            });
-            track.line.bringToFront();
-            track.line.openTooltip();
-        });
-        trackrow.addEventListener('mouseout', () => {
-            track.decorator.setPatterns([
-                {offset: 0, repeat: 0, symbol: L.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
-            ]);
-            track.line.setStyle(this.options.lineOptions);
-            track.line.closeTooltip();
-        });
-        let map = this.map;
-        trackrow.addEventListener('click', function() {
-            let offset = document.querySelector('.leaflet-sidebar-content').getBoundingClientRect().width;
-            map.fitBounds(track.line.getBounds(), {paddingTopLeft: [offset, 0]});
-        });
+        trackrow.addEventListener('mouseover', () => this.selectTrack(track));
+        trackrow.addEventListener('mouseout', () => this.unselectTrack(track));
+        trackrow.addEventListener('click', () => this.centerTrack(track));
         
         document.getElementById('tracklist').getElementsByTagName('tbody')[0].appendChild(trackrow);
     }
     
-    refreshTrackTooltip(track) {
+    addTrackToTimeline(track) {
         let length = (leafletGeometry.length(track.line) / 1000).toFixed(1);
+        let trackstart = (track.starttime) ? moment(track.starttime) : moment(track.date, "DD.MM.YYYY");
+        let trackend = (track.endtime) ? moment.utc(track.endtime) : null;
         let tooltip = "<strong>" + track.name + '</strong>';
-        if (track.points[0].time) tooltip += "<br>Дата: " + moment(track.points[0].time).format("DD.MM.YYYY HH:mm:ss");
+        if (track.starttime) tooltip += "<br>Дата: " + moment(track.starttime).format("DD.MM.YYYY HH:mm:ss");
         if (track.date) tooltip += "<br>Дата: " + track.date;
         tooltip += '<br>Расстояние: ' + length + ' км';
         if (track.desc) tooltip += track.desc;
         if (track.type) tooltip += "<br>" + track.type + (track.equipment ? ": " + track.equipment : "");
         if (track.totaltime) tooltip += "<br>Длительность: " + moment.utc(track.totaltime*1000).format("H:mm");
-        if (track.totalElev) tooltip += "<br>Общий подъем: " + track.totalElev + " м";
-        if (track.elevMap) tooltip += "<br><img src='" + track.elevMap + "'>";
+        if (track.totalElev) tooltip += "<br>Общий подъем: " + track.totalElev.toFixed(0) + " м";
+        
+        if (trackend) {
+            this.visitems.add([{content: track.name, start: trackstart, end: trackend, type: 'range', title: tooltip, track: track}]);
+        } else {
+            this.visitems.add([{content: track.name, start: trackstart, title: tooltip, track: track}]);
+        }
+    }
+    
+    refreshTrackTooltip(track) {
+        let length = (leafletGeometry.length(track.line) / 1000).toFixed(1);
+        let tooltip = "<strong>" + track.name + '</strong>';
+        if (track.starttime) tooltip += "<br>Дата: " + moment(track.starttime).format("DD.MM.YYYY HH:mm:ss");
+        if (track.date) tooltip += "<br>Дата: " + track.date;
+        tooltip += '<br>Расстояние: ' + length + ' км';
+        if (track.desc) tooltip += track.desc;
+        if (track.type) tooltip += "<br>" + track.type + (track.equipment ? ": " + track.equipment : "");
+        if (track.totaltime) tooltip += "<br>Длительность: " + moment.utc(track.totaltime*1000).format("H:mm");
+        if (track.totalElev) tooltip += "<br>Общий подъем: " + track.totalElev.toFixed(0) + " м";
+        if (track.trackImage) tooltip += "<br><img style='max-width: 400px' src='" + track.trackImage + "'>";
         track.line.bindTooltip(tooltip, {sticky: true, opacity:0.8});
+    }
+    
+    selectTrack(track) {
+        track.decorator.setPatterns([
+            {offset: 400, repeat: 400, symbol: L.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 1, color: 'red'}})}
+        ]);
+        track.line.setStyle({
+            color: 'red',
+            weight: 3,
+            opacity: 1.0
+        });
+        track.line.bringToFront();
+        track.line.openTooltip();
+    }
+    
+    unselectTrack(track) {
+        track.decorator.setPatterns([
+            {offset: 0, repeat: 0, symbol: L.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
+        ]);
+        track.line.setStyle(this.options.lineOptions);
+        track.line.closeTooltip();
+    }
+    
+    unselectAllTracks(track) {
+        this.tracks.forEach(track => {
+            this.unselectTrack(track);
+        });
+    }
+    
+    centerTrack(track) {
+        let offset = document.querySelector('.leaflet-sidebar-content').getBoundingClientRect().width;
+        this.map.fitBounds(track.line.getBounds(), {paddingTopLeft: [offset, 0]});
+    }
+    
+    fitTimelineRange() {
+        this.timeline.fit();
+        /*this.timeline.setOptions({
+            min: moment.min(this.tracks.map(track => track.endtime ? moment(track.endtime) : moment(track.date, 'DD.MM.YYYY'))),
+            max: moment.max(this.tracks.map(track => track.starttime ? moment(track.starttime) : moment(track.date, 'DD.MM.YYYY')))
+        })*/
     }
 
     async markerClick(image) {
@@ -558,5 +626,6 @@ export default class GpxMap {
             track.decorator.remove();
         });
         this.tracks = []
+        this.visitems.clear();
     }
 }

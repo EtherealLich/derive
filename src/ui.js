@@ -4,7 +4,7 @@ import {extractTracks, extractTracksUrl, createGpx, extractStravaCsv} from './tr
 import Image from './image';
 import leafletGeometry from 'leaflet-geometryutil';
 
-const AVAILABLE_THEMES = [
+export const AVAILABLE_THEMES = [
     'CartoDB.DarkMatter',
     'CartoDB.DarkMatterNoLabels',
     'CartoDB.Positron',
@@ -40,7 +40,8 @@ const MODAL_CONTENT = {
 <p>
     <a href="?map=2017.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2017 год</a><br/>
     <a href="?map=2018.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2018 год</a><br/>
-    <a href="?map=2019.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2019 год</a>
+    <a href="?map=2019.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2019 год</a><br/>
+    <a href="?map=2020.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2020 год</a>
 </p>
 
 <p>Приложение базируется на коде Erik Price доступном на <a href="https://github.com/erik/derive">GitHub</a>.</p>
@@ -143,6 +144,7 @@ function handleFileSelect(map, evt) {
     };
 
     Promise.all(files.map(handleFile)).then(() => {
+        map.fitTimelineRange();
         map.center();
         modal.finished();
     });
@@ -441,7 +443,7 @@ export function initialize(map, showHelp) {
 export function loadgpx(map, url) {
     let modal = buildUploadModal(1);
     modal.show();
-    const track = extractTracksUrl(url)
+    return extractTracksUrl(url)
         .then(tracks => {
             for (const track of tracks) {
                 track.filename = url;

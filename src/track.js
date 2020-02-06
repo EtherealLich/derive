@@ -25,7 +25,7 @@ function extractGPXTracks(gpx) {
     gpx.trk && gpx.trk.forEach(trk => {
         let name = trk.name && trk.name.length > 0 ? trk.name[0] : 'untitled';
         let date;
-        let matches
+        let matches;
         if (matches = name.match(/(\d+)\_(\d+)\_(\d+)\_(.*)/i)) {
             date = matches[3] + "." + matches[2] + "." + matches[1];
             name = matches[4];
@@ -33,24 +33,31 @@ function extractGPXTracks(gpx) {
         
         let src = trk.src && trk.src.length > 0 ? trk.src[0] : null;
         let desc = trk.desc && trk.desc.length > 0 ? trk.desc[0] : null;
-        let gpsiesUrl, elevMap;
-            for (let link of trk.link || []) {
-                if (link.type.includes('trackOnWeb')) {
-                    gpsiesUrl = link['$']['href'];
-                }
-                if (link.type.includes('elevationChartUrlTab')) {
-                    elevMap = link['$']['href'];
-                }
+        let gpsiesUrl, trackImage;
+        for (let link of trk.link || []) {
+            if (link.type.includes('trackOnWeb')) {
+                gpsiesUrl = link['$']['href'];
             }
+            if (link.type.includes('trackImage')) {
+                trackImage = link['$']['href'];
+            }
+            if (link.type.includes('elevationChartUrlTab')) {
+                trackImage = link['$']['href'];
+            }
+        }
         
         let timestamp;
         let totalElev = 0;
+        let starttime = null;
+        let endtime = null;
 
         trk.trkseg.forEach(trkseg => {
             let points = [];
             for (let trkpt of trkseg.trkpt) {
                 if (trkpt.time && typeof trkpt.time[0] === 'string') {
-                    timestamp = new Date(trkpt.time[0]);
+                    timestamp = moment.utc(trkpt.time[0]).toDate();
+                    if (!starttime) starttime = timestamp;
+                    endtime = timestamp;
                 }
                 if (typeof trkpt.$ !== 'undefined' &&
                     typeof trkpt.$.lat !== 'undefined' &&
@@ -67,7 +74,9 @@ function extractGPXTracks(gpx) {
                     });
                 }
             }
-            parsedTracks.push({timestamp, points, name, src, desc, gpsiesUrl, elevMap, totalElev, date});
+            let totaltime = moment(endtime).diff(moment(starttime), 'seconds');
+            console.log(totaltime);
+            parsedTracks.push({timestamp, points, name, src, desc, gpsiesUrl, trackImage, totalElev, date, starttime, endtime, totaltime});
         });
     });
 
@@ -111,9 +120,8 @@ function extractTCXTracks(tcx, name) {
                 points.push({
                     lat: parseFloat(trkpt.Position[0].LatitudeDegrees[0]),
                     lng: parseFloat(trkpt.Position[0].LongitudeDegrees[0]),
-                    time: timestamp
-                    // These are available to us, but are currently unused
-                    // elev: parseFloat(trkpt.ElevationMeters[0]) || 0,
+                    time: timestamp,
+                    elev: parseFloat(trkpt.ElevationMeters[0]) || 0
                 });
             }
 
@@ -131,20 +139,30 @@ function extractFITTracks(fit, name) {
     }
 
     let timestamp;
+    let totalElev = 0.0;
+    let starttime = null;
+    let endtime = null;
     const points = [];
     for (const record of fit.records) {
         if (record.position_lat && record.position_long) {
+            let elev = record.altitude || 0;
+            if (points.length > 0 && elev != 0) {
+                totalElev += (elev - points[points.length - 1].elev > 0 ) ? elev - points[points.length - 1].elev : 0;
+            }
+            timestamp = moment.utc(record.timestamp).toDate();
+            if (!starttime) starttime = timestamp;
+            endtime = timestamp;
             points.push({
                 lat: record.position_lat,
                 lng: record.position_long,
-                time: new Date(record.timestamp)
+                time: new Date(timestamp),
+                elev: elev
                 // Other available fields: timestamp, distance, altitude, speed, heart_rate
             });
         }
-        record.timestamp && (timestamp = record.timestamp);
     }
-
-    return [{timestamp, points, name}];
+    let totaltime = moment(endtime).diff(moment(starttime), 'seconds');
+    return [{timestamp, points, name, totalElev, starttime, endtime, totaltime}];
 }
 
 
