@@ -15,15 +15,15 @@ const INIT_COORDS = [58.006224, 56.245257];
 
 
 const DEFAULT_OPTIONS = {
-    theme: 'CartoDB.DarkMatter',
+    theme: 'CartoDB.Voyager',
     lineOptions: {
-        color: '#0CB1E8',
-        weight: 1,
-        opacity: 0.7,
+        color: '#0a799e',
+        weight: 2,
+        opacity: 0.6,
         smoothFactor: 2,
         overrideExisting: true,
         detectColors: true,
-        renderer: L.canvas({ padding: 0, tolerance: 5 })
+        renderer: leaflet.canvas({ padding: 0, tolerance: 5 })
     },
     markerOptions: {
         color: '#00FF00',
@@ -35,7 +35,7 @@ const DEFAULT_OPTIONS = {
 
 export default class GpxMap {
     constructor(options) {
-        this.options = options || DEFAULT_OPTIONS;
+        this.options = Object.assign(DEFAULT_OPTIONS, options);
         this.tracks = [];
         this.filters = {
             minDate: null,
@@ -58,8 +58,8 @@ export default class GpxMap {
         
         this.viewAll = this.sidebar.addPanel({
             id: 'viewall',
-            tab: '<i class="fa fa-map fa-lg"></i>',
-            title: 'Zoom to all tracks',
+            tab: '<i class="fa fa-search fa-lg"></i>',
+            title: 'Центровать на всех треках',
             button: () => {
                 this.center();
             },
@@ -99,7 +99,7 @@ export default class GpxMap {
             this.switchTheme(this.options.theme);
         };
         
-        document.getElementById('buttonExportAsPng').onclick = (e) => {
+        document.getElementById('buttonExportAsPng').onclick = () => {
             let modal = ui.showModal('exportImage')
                 .afterClose(() => modal.destroy());
 
@@ -114,14 +114,14 @@ export default class GpxMap {
             };
         };
         
-        document.getElementById('buttonSaveAll').onclick = (e) => {
+        document.getElementById('buttonSaveAll').onclick = () => {
             ui.saveGpx(this.tracks);
         };
         
         this.sidebar.addPanel({
             id: 'settings',
             tab: '<i class="fa fa-sliders fa-lg"></i>',
-            title: 'Open settings dialog',
+            title: 'Настройки',
             button: () => {
                 ui.buildSettingsModal(this.tracks, this.options, (opts) => {
                     this.updateOptions(opts);
@@ -132,7 +132,7 @@ export default class GpxMap {
         this.sidebar.addPanel({
             id: 'filtertracks',
             tab: '<i class="fa fa-filter fa-lg"></i>',
-            title: 'Filter displayed tracks',
+            title: 'Фильтр по датам',
             button: () => {
                 ui.buildFilterModal(this.tracks, this.filters, (f) => {
                     this.filters = f;
@@ -142,59 +142,59 @@ export default class GpxMap {
         });
         
         this.sidebar.addPanel({
-            id: "routes2017",
-            title: "Маршруты за 2017 год",
-            tab: "<small>2017</small>",
+            id: 'routes2017',
+            title: 'Маршруты за 2017 год',
+            tab: '<small>2017</small>',
             button: async () => {
                 this.clearMap();
-                await ui.loadgpx(this, "2017.gpx");
+                await ui.loadgpx(this, '2017.gpx');
                 this.fitTimelineRange();
             },
-            position: "bottom"
+            position: 'bottom'
         });
         
         this.sidebar.addPanel({
-            id: "routes2018",
-            title: "Маршруты за 2018 год",
-            tab: "<small>2018</small>",
+            id: 'routes2018',
+            title: 'Маршруты за 2018 год',
+            tab: '<small>2018</small>',
             button: async () => {
                 this.clearMap();
-                await ui.loadgpx(this, "2018.gpx");
+                await ui.loadgpx(this, '2018.gpx');
                 this.fitTimelineRange();
             },
-            position: "bottom"
+            position: 'bottom'
         });
         
         this.sidebar.addPanel({
-            id: "routes2019",
-            title: "Маршруты за 2019 год",
-            tab: "<small>2019</small>",
+            id: 'routes2019',
+            title: 'Маршруты за 2019 год',
+            tab: '<small>2019</small>',
             button: async () => {
                 this.clearMap();
-                await ui.loadgpx(this, "2019.gpx");
+                await ui.loadgpx(this, '2019.gpx');
                 this.fitTimelineRange();
             },
-            position: "bottom"
+            position: 'bottom'
         });
         
         this.sidebar.addPanel({
-            id: "routes2019",
-            title: "Маршруты за 2020 год",
-            tab: "<small>2020</small>",
+            id: 'routes2019',
+            title: 'Маршруты за 2020 год',
+            tab: '<small>2020</small>',
             button: async () => {
                 this.clearMap();
-                await ui.loadgpx(this, "2020.gpx");
+                await ui.loadgpx(this, '2020.gpx');
                 this.fitTimelineRange();
             },
-            position: "bottom"
+            position: 'bottom'
         });
         
         this.sidebar.addPanel({
-            id: "tracklistpanel",
-            title: "Список треков",
+            id: 'tracklistpanel',
+            title: 'Список треков',
             tab: '<i class="fa fa-bars fa-lg"></i>',
             pane: '<table id="tracklist"><tr><thead><th>Дата</th><th>Название</th><th>Дистанция</th><th>Подъем</th></tr></thead><tbody></tbody></table>',
-            position: "bottom"
+            position: 'bottom'
         });
         
         document.getElementById('buttonAddTrackFromPoints').onclick = (e) => {
@@ -223,23 +223,26 @@ export default class GpxMap {
         this.clearScroll();
         this.switchTheme(this.options.theme);
         this.requestBrowserLocation();
-        
-        var container = document.getElementById('timeline-vis');
 
-        this.visitems = new vis.DataSet();
-        this.timeline = new vis.Timeline(container, this.visitems, {width: '100%', height: '120px', stack: false});
+        if (this.options.showTimeline) {
         
-        this.timeline.on('select', (properties) => {
-            this.centerTrack(this.visitems.get(properties.items[0]).track);
-        });
-        
-        this.timeline.on('itemover', (properties) => {
-            this.selectTrack(this.visitems.get(properties.item).track);
-        });
-        
-        this.timeline.on('itemout', (properties) => {
-            this.unselectAllTracks();
-        });
+            var container = document.getElementById('timeline-vis');
+
+            this.visitems = new vis.DataSet();
+            this.timeline = new vis.Timeline(container, this.visitems, {width: '100%', height: '120px', stack: false});
+            
+            this.timeline.on('select', (properties) => {
+                this.centerTrack(this.visitems.get(properties.items[0]).track);
+            });
+            
+            this.timeline.on('itemover', (properties) => {
+                this.selectTrack(this.visitems.get(properties.item).track);
+            });
+            
+            this.timeline.on('itemout', () => {
+                this.unselectAllTracks();
+            });
+        }
     }
 
     clearScroll() {
@@ -351,7 +354,7 @@ export default class GpxMap {
         let line = leaflet.polyline(track.points, lineOptions);
         let decorator = leaflet.polylineDecorator(line, {
             patterns: [
-                {offset: 0, repeat: 0, symbol: L.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
+                {offset: 0, repeat: 0, symbol: leaflet.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
             ]
         }).addTo(this.map);
         line.addTo(this.map);
@@ -365,7 +368,9 @@ export default class GpxMap {
         this.tracks.push(track);
         this.refreshTrackTooltip(track);
         this.addTrackToList(track);
-        this.addTrackToTimeline(track)
+        if (this.options.showTimeline) {
+            this.addTrackToTimeline(track);
+        }
 
         return track;
     }
@@ -375,19 +380,19 @@ export default class GpxMap {
         
         let trackdate = document.createElement('td');
         trackdate.innerText = (track.starttime)
-            ? moment(track.starttime).format("DD.MM.YYYY HH:mm:ss")
+            ? moment(track.starttime).format('DD.MM.YYYY HH:mm:ss')
             : track.date;
         
         let trackname = document.createElement('td');
         trackname.innerText = track.name;
         
         let tracklength = document.createElement('td');
-        tracklength.innerText = (leafletGeometry.length(track.line) / 1000).toFixed(1) + " км";
-        tracklength.classList.add("nowrap");
+        tracklength.innerText = (leafletGeometry.length(track.line) / 1000).toFixed(1) + ' км';
+        tracklength.classList.add('nowrap');
         
         let trackheight = document.createElement('td');
-        trackheight.innerText = track.totalElev.toFixed(0) + " м";
-        trackheight.classList.add("nowrap");
+        trackheight.innerText = track.totalElev.toFixed(0) + ' м';
+        trackheight.classList.add('nowrap');
         
         trackrow.appendChild(trackdate);
         trackrow.appendChild(trackname);
@@ -403,16 +408,16 @@ export default class GpxMap {
     
     addTrackToTimeline(track) {
         let length = (leafletGeometry.length(track.line) / 1000).toFixed(1);
-        let trackstart = (track.starttime) ? moment(track.starttime) : moment(track.date, "DD.MM.YYYY");
+        let trackstart = (track.starttime) ? moment(track.starttime) : moment(track.date, 'DD.MM.YYYY');
         let trackend = (track.endtime) ? moment.utc(track.endtime) : null;
-        let tooltip = "<strong>" + track.name + '</strong>';
-        if (track.starttime) tooltip += "<br>Дата: " + moment(track.starttime).format("DD.MM.YYYY HH:mm:ss");
-        if (track.date) tooltip += "<br>Дата: " + track.date;
+        let tooltip = '<strong>' + track.name + '</strong>';
+        if (track.starttime) {tooltip += '<br>Дата: ' + moment(track.starttime).format('DD.MM.YYYY HH:mm:ss');}
+        if (track.date) {tooltip += '<br>Дата: ' + track.date;}
         tooltip += '<br>Расстояние: ' + length + ' км';
-        if (track.desc) tooltip += track.desc;
-        if (track.type) tooltip += "<br>" + track.type + (track.equipment ? ": " + track.equipment : "");
-        if (track.totaltime) tooltip += "<br>Длительность: " + moment.utc(track.totaltime*1000).format("H:mm");
-        if (track.totalElev) tooltip += "<br>Общий подъем: " + track.totalElev.toFixed(0) + " м";
+        if (track.desc) {tooltip += track.desc;}
+        if (track.type) {tooltip += '<br>' + track.type + (track.equipment ? ': ' + track.equipment : '');}
+        if (track.totaltime) {tooltip += '<br>Длительность: ' + moment.utc(track.totaltime*1000).format('H:mm');}
+        if (track.totalElev) {tooltip += '<br>Общий подъем: ' + track.totalElev.toFixed(0) + ' м';}
         
         if (trackend) {
             this.visitems.add([{content: track.name, start: trackstart, end: trackend, type: 'range', title: tooltip, track: track}]);
@@ -423,21 +428,21 @@ export default class GpxMap {
     
     refreshTrackTooltip(track) {
         let length = (leafletGeometry.length(track.line) / 1000).toFixed(1);
-        let tooltip = "<strong>" + track.name + '</strong>';
-        if (track.starttime) tooltip += "<br>Дата: " + moment(track.starttime).format("DD.MM.YYYY HH:mm:ss");
-        if (track.date) tooltip += "<br>Дата: " + track.date;
+        let tooltip = '<strong>' + track.name + '</strong>';
+        if (track.starttime) {tooltip += '<br>Дата: ' + moment(track.starttime).format('DD.MM.YYYY HH:mm:ss');}
+        if (track.date) {tooltip += '<br>Дата: ' + track.date;}
         tooltip += '<br>Расстояние: ' + length + ' км';
-        if (track.desc) tooltip += track.desc;
-        if (track.type) tooltip += "<br>" + track.type + (track.equipment ? ": " + track.equipment : "");
-        if (track.totaltime) tooltip += "<br>Длительность: " + moment.utc(track.totaltime*1000).format("H:mm");
-        if (track.totalElev) tooltip += "<br>Общий подъем: " + track.totalElev.toFixed(0) + " м";
-        if (track.trackImage) tooltip += "<br><img style='max-width: 400px' src='" + track.trackImage + "'>";
+        if (track.desc) {tooltip += track.desc;}
+        if (track.type) {tooltip += '<br>' + track.type + (track.equipment ? ': ' + track.equipment : '');}
+        if (track.totaltime) {tooltip += '<br>Длительность: ' + moment.utc(track.totaltime*1000).format('H:mm');}
+        if (track.totalElev) {tooltip += '<br>Общий подъем: ' + track.totalElev.toFixed(0) + ' м';}
+        if (track.trackImage) {tooltip += '<br><img style=\'max-width: 400px\' src=\'' + track.trackImage + '\'>';}
         track.line.bindTooltip(tooltip, {sticky: true, opacity:0.8});
     }
     
     selectTrack(track) {
         track.decorator.setPatterns([
-            {offset: 400, repeat: 400, symbol: L.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 1, color: 'red'}})}
+            {offset: 400, repeat: 400, symbol: leaflet.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 1, color: 'red'}})}
         ]);
         track.line.setStyle({
             color: 'red',
@@ -450,13 +455,13 @@ export default class GpxMap {
     
     unselectTrack(track) {
         track.decorator.setPatterns([
-            {offset: 0, repeat: 0, symbol: L.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
+            {offset: 0, repeat: 0, symbol: leaflet.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
         ]);
         track.line.setStyle(this.options.lineOptions);
         track.line.closeTooltip();
     }
     
-    unselectAllTracks(track) {
+    unselectAllTracks() {
         this.tracks.forEach(track => {
             this.unselectTrack(track);
         });
@@ -468,11 +473,9 @@ export default class GpxMap {
     }
     
     fitTimelineRange() {
-        this.timeline.fit();
-        /*this.timeline.setOptions({
-            min: moment.min(this.tracks.map(track => track.endtime ? moment(track.endtime) : moment(track.date, 'DD.MM.YYYY'))),
-            max: moment.max(this.tracks.map(track => track.starttime ? moment(track.starttime) : moment(track.date, 'DD.MM.YYYY')))
-        })*/
+        if (this.options.showTimeline) {
+            this.timeline.fit();
+        }
     }
 
     async markerClick(image) {

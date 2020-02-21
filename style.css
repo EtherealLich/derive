@@ -14,12 +14,13 @@ a {
     position: absolute;
     top: 0;
     right: 0;
-    bottom: 120px;
+    bottom: 0;
     left: 0;
     z-index: -1;
 }
 
 #timeline { 
+    display: none;
     height: 120px; 
     position: absolute;
     left: 0;

@@ -7,8 +7,13 @@ import {initialize, loadgpx} from './ui';
 
 
 function app() {
-    let map = new GpxMap();
     const urlParams = new URLSearchParams(window.location.search);
+    let showTimeline = urlParams.get('timeline') || false;
+    if (showTimeline) {
+        document.getElementById('background-map').style.bottom = '120px';
+        document.getElementById('timeline').style.display = 'block';
+    }
+    let map = new GpxMap({showTimeline: showTimeline});
     if (urlParams.get('map')) {
         loadgpx(map, urlParams.get('map')).then(() =>map.fitTimelineRange());
     }

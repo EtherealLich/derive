@@ -27,7 +27,7 @@ function extractGPXTracks(gpx) {
         let date;
         let matches;
         if (matches = name.match(/(\d+)\_(\d+)\_(\d+)\_(.*)/i)) {
-            date = matches[3] + "." + matches[2] + "." + matches[1];
+            date = matches[3] + '.' + matches[2] + '.' + matches[1];
             name = matches[4];
         }
         
@@ -38,9 +38,9 @@ function extractGPXTracks(gpx) {
             if (link.type.includes('trackOnWeb')) {
                 gpsiesUrl = link['$']['href'];
             }
-            if (link.type.includes('trackImage')) {
+            /*if (link.type.includes('trackImage')) {
                 trackImage = link['$']['href'];
-            }
+            }*/
             if (link.type.includes('elevationChartUrlTab')) {
                 trackImage = link['$']['href'];
             }
@@ -56,14 +56,14 @@ function extractGPXTracks(gpx) {
             for (let trkpt of trkseg.trkpt) {
                 if (trkpt.time && typeof trkpt.time[0] === 'string') {
                     timestamp = moment.utc(trkpt.time[0]).toDate();
-                    if (!starttime) starttime = timestamp;
+                    if (!starttime) {starttime = timestamp;}
                     endtime = timestamp;
                 }
                 if (typeof trkpt.$ !== 'undefined' &&
                     typeof trkpt.$.lat !== 'undefined' &&
                     typeof trkpt.$.lon !== 'undefined') {
                     let elev = parseFloat(trkpt.ele) || 0;
-                    if (points.length > 0 && elev != 0) {
+                    if (points.length > 0 && elev !== 0) {
                         totalElev += (elev - points[points.length - 1].elev > 0 ) ? elev - points[points.length - 1].elev : 0;
                     }
                     points.push({
@@ -75,7 +75,6 @@ function extractGPXTracks(gpx) {
                 }
             }
             let totaltime = moment(endtime).diff(moment(starttime), 'seconds');
-            console.log(totaltime);
             parsedTracks.push({timestamp, points, name, src, desc, gpsiesUrl, trackImage, totalElev, date, starttime, endtime, totaltime});
         });
     });
@@ -146,11 +145,11 @@ function extractFITTracks(fit, name) {
     for (const record of fit.records) {
         if (record.position_lat && record.position_long) {
             let elev = record.altitude || 0;
-            if (points.length > 0 && elev != 0) {
+            if (points.length > 0 && elev !== 0) {
                 totalElev += (elev - points[points.length - 1].elev > 0 ) ? elev - points[points.length - 1].elev : 0;
             }
             timestamp = moment.utc(record.timestamp).toDate();
-            if (!starttime) starttime = timestamp;
+            if (!starttime) {starttime = timestamp;}
             endtime = timestamp;
             points.push({
                 lat: record.position_lat,
@@ -242,6 +241,8 @@ export function extractTracks(file) {
 
 export function extractTracksUrl(url) { 
     let isGzipped = /\.gz$/i.test(url);
+    const strippedName = url.split('/').pop().replace(/\.gz$/i, '');
+
     return axios({
             method: 'get',
             url: url,
@@ -281,7 +282,7 @@ export function createGpx(tracks) {
 <gpx creator="pinmixperm" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd" version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
     <metadata>
         <name>Merged ${tracks.length} tracks</name>
-        <desc>Merged tracks: ${tracks.map(track =>  escapeXml(track.name)).join(", ")}</desc>
+        <desc>Merged tracks: ${tracks.map(track =>  escapeXml(track.name)).join(', ')}</desc>
         <author>
             <name>PINMIXPERM</name>
         </author>
@@ -292,9 +293,9 @@ export function createGpx(tracks) {
         <name>${escapeXml(track.name)}</name>
         <src>${track.filename}</src>`;
         
-        let desc = "";
-        if (track.type) desc += "<br>" + track.type + (track.equipment ? ": " + track.equipment : "");
-        if (track.totaltime) desc += "<br>Длительность: " + moment.utc(track.totaltime*1000).format("H:mm");
+        let desc = '';
+        if (track.type) {desc += '<br>' + track.type + (track.equipment ? ': ' + track.equipment : '');}
+        if (track.totaltime) {desc += '<br>Длительность: ' + moment.utc(track.totaltime*1000).format('H:mm');}
         if (desc.length > 0) {
             gpx +=`
         <desc>${escapeXml(desc)}</desc>`;
@@ -303,9 +304,9 @@ export function createGpx(tracks) {
         gpx +=`
         <trkseg>`;
         track.points.forEach(point => {
-            let formatTime = moment(point["time"]).format("YYYY-MM-DDTHH:mm:ss") + "Z";
+            let formatTime = moment(point['time']).format('YYYY-MM-DDTHH:mm:ss') + 'Z';
             gpx += `
-            <trkpt lat="${point["lat"]}" lon="${point["lng"]}">
+            <trkpt lat="${point['lat']}" lon="${point['lng']}">
                 <time>${formatTime}</time>
             </trkpt>`;
         });

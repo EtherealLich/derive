@@ -104,9 +104,9 @@ function handleFileSelect(map, evt) {
                 'url': track.gpsiesUrl
             });
         }
-        let result = "";
+        let result = '';
         for (const row of csv) {
-            result += Object.keys(row).map(k => '"' + row[k] + '"').join(";") + "\n";
+            result += Object.keys(row).map(k => '"' + row[k] + '"').join(';') + '\n';
         }
         console.log(result);
     };
@@ -115,12 +115,12 @@ function handleFileSelect(map, evt) {
         const activities = await extractStravaCsv(file);
 
         for(const track of map.tracks) {
-            let trackactivities = activities.filter(activity => activity["Название файла"].includes(track.filename) || (track.src && activity["Название файла"].includes(track.src)));
+            let trackactivities = activities.filter(activity => activity['Название файла'].includes(track.filename) || (track.src && activity['Название файла'].includes(track.src)));
             if (trackactivities.length > 0) {
-                track["name"] = trackactivities.map(activity => activity["Название тренировки"]).join(' + ');
-                track["equipment"] = trackactivities[0]["Снаряжение для физической активности"];
-                track["totaltime"] = trackactivities.map(activity => activity["Общее время"]).reduce((a, b) => a + b, 0);
-                track["type"] = trackactivities[0]["Тип активности"];
+                track['name'] = trackactivities.map(activity => activity['Название тренировки']).join(' + ');
+                track['equipment'] = trackactivities[0]['Снаряжение для физической активности'];
+                track['totaltime'] = trackactivities.map(activity => activity['Общее время']).reduce((a, b) => a + b, 0);
+                track['type'] = trackactivities[0]['Тип активности'];
                 map.refreshTrackTooltip(track);
             }
         }
@@ -427,7 +427,7 @@ export function showModal(type) {
 
 export function initialize(map, showHelp) {
     let modal;
-    if (showHelp) modal = showModal('help');
+    if (showHelp) {modal = showModal('help');}
 
     window.addEventListener('dragover', handleDragOver, false);
 
@@ -456,15 +456,15 @@ export function loadgpx(map, url) {
 }
 
 export function saveGpx(tracks) {
-    download(createGpx(tracks), 'all.gpx', "application/gpx+xml");
+    download(createGpx(tracks), 'all.gpx', 'application/gpx+xml');
 }
 
 function download(data, filename, type) {
     var file = new Blob([data], {type: type});
     if (window.navigator.msSaveOrOpenBlob) // IE10+
-        window.navigator.msSaveOrOpenBlob(file, filename);
+        {window.navigator.msSaveOrOpenBlob(file, filename);}
     else { // Others
-        var a = document.createElement("a"),
+        var a = document.createElement('a'),
                 url = URL.createObjectURL(file);
         a.href = url;
         a.download = filename;
