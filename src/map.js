@@ -629,6 +629,9 @@ export default class GpxMap {
             track.decorator.remove();
         });
         this.tracks = []
-        this.visitems.clear();
+
+        if (this.options.showTimeline) {
+            this.visitems.clear();
+        }
     }
 }
