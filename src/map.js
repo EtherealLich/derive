@@ -2,6 +2,7 @@ import leaflet from 'leaflet';
 import leafletImage from 'leaflet-image';
 import leafletGeometry from 'leaflet-geometryutil';
 import 'leaflet-polylinedecorator';
+import 'leaflet-hotline';
 import 'leaflet-providers';
 import 'leaflet-easybutton';
 import moment from 'moment';
@@ -10,6 +11,8 @@ import vis from 'vis-timeline'
 
 import * as ui from './ui';
 
+import 'leaflet/dist/images/marker-shadow.png'
+import 'leaflet/dist/images/marker-icon-2x.png'
 
 const INIT_COORDS = [58.006224, 56.245257];
 
@@ -23,7 +26,8 @@ const DEFAULT_OPTIONS = {
         smoothFactor: 2,
         overrideExisting: true,
         detectColors: true,
-        renderer: leaflet.canvas({ padding: 0, tolerance: 5 })
+        renderer: leaflet.canvas({ padding: 0, tolerance: 5 }),
+        outlineWidth: 1
     },
     markerOptions: {
         color: '#00FF00',
@@ -47,6 +51,19 @@ export default class GpxMap {
             center: INIT_COORDS,
             zoom: 10,
             preferCanvas: true,
+        });
+
+        this.markersLayer = leaflet.layerGroup();
+				  
+        var overlay = {'Точки измерений': this.markersLayer};
+        leaflet.control.layers(null, overlay).addTo(this.map);
+        
+        this.map.on('zoomend', () => {
+            if (this.map.getZoom() < 16){
+                this.map.removeLayer(this.markersLayer);
+            } else {
+                this.map.addLayer(this.markersLayer);
+            }
         });
         
         this.sidebar = leaflet.control.sidebar({
@@ -90,8 +107,53 @@ export default class GpxMap {
                 <input type="text" id="addTrackFromPointsName" placeholder="Название маршрута" style="padding:5px;margin:5px;"><br/>
                 <textarea style="padding:5px;margin:5px;" rows="5" cols="50" wrap="on" id="addTrackFromPointsArray" placeholder="[[lat, lng],[lat, lng],...]"></textarea><br/>
                 <button class="btn" id="buttonAddTrackFromPoints"><i class="fa fa-plus fa-lg"></i> Добавить</button>
-                
+                <hr/>
+                <label class="btn">
+                    <input type="file" id="PMMeasureFile" accept=".csv" style="display: none;">
+                    <i class="fa fa-plus fa-lg"></i> Загрузить результаты измерений PM
+                </label>
             </div>`,
+        });
+
+        document.getElementById('PMMeasureFile').addEventListener('change', (event) => {
+            let self = this;
+
+            let file = event.target.files[0];
+            let reader = new FileReader();
+
+            reader.readAsText(file);
+
+            reader.onload = function() {
+                var arr = reader.result.split('\n');  
+
+                var jsonObj = [];
+                var headers = arr[0].split(';');
+                for(var i = 1; i < arr.length; i++) {
+                    var data = arr[i].split(';');
+                    var obj = {};
+                    for(var j = 0; j < data.length; j++) {
+                        obj[headers[j].trim()] = data[j].trim();
+                    }
+                    jsonObj.push(obj);
+                }
+
+                let points = jsonObj.filter(measure => measure.Latitude > 0 && measure.Longitude > 0);
+                let timestamp = new Date(points[0].Time);
+                let name = file.name;
+                let starttime = new Date(points[0].Time);
+
+                points = points.map(point => {
+                        return {
+                            lat: point.Latitude,
+                            lng: point.Longitude,
+                            pmData: point
+                        }
+                    })
+                let track = {timestamp, points, name, starttime}
+                console.log(track)
+
+                self.addTrackPM(track)
+            };
         });
         
         document.getElementById('switchTheme').onchange = (e) => {
@@ -200,13 +262,20 @@ export default class GpxMap {
         document.getElementById('buttonAddTrackFromPoints').onclick = (e) => {
             e.preventDefault();
 
-            let data = JSON.parse(document.getElementById('addTrackFromPointsArray').value);
+
+            let data = []; 
+            try {
+                data = JSON.parse(document.getElementById('addTrackFromPointsArray').value);
+            } catch (e) {
+                alert('Ошибка парсинга введенных данных. ' + e)
+            }
             
             let points = [];
             data.forEach(a => points.push({
                 lat: parseFloat(a[1]),
                 lng: parseFloat(a[0])
             }));
+
             let track = {
                 name: document.getElementById('addTrackFromPointsName').value,
                 points: points
@@ -374,6 +443,52 @@ export default class GpxMap {
 
         return track;
     }
+
+    addTrackPM(track) {
+        this.sidebar.enablePanel('viewall');
+
+        let lineOptions = {
+            min: 0,
+            max: 100,
+            palette: {
+                0.0: '#00796b',
+                0.25: '#f9a825',
+                0.5: '#e65100',
+                0.75: '#dd2c00',
+                1.0: '#8c0084'
+            },
+            weight: 10,
+            outlineColor: '#000000',
+            outlineWidth: 1,
+            smoothFactor: 1
+        };
+        let points = track.points.map(point => [
+            point.lat,
+            point.lng,
+            point.pmData['PM2.5'] ? point.pmData['PM2.5'] : 0
+        ]);
+        let line = leaflet.hotline(points, lineOptions);
+        line.addTo(this.map);
+
+        track.points.forEach(point => {
+            var marker = leaflet.marker([point.lat, point.lng], {
+                title: 'PM2.5: ' + point.pmData['PM2.5']
+                })
+                .bindPopup('Данные измерений<br/>'  + '<br>Время: ' + point.pmData['Time'] + '<br>PM2.5: ' + point.pmData['PM2.5'] + '<br>PM10: ' + point.pmData['PM10'] + '<br>Температура: ' + point.pmData['Temperature'] + '<br>Влажность: ' + point.pmData['Humidity'] + '<br>Давление: ' + point.pmData['Pressure']);
+            this.markersLayer.addLayer(marker);
+        })
+        
+        track = Object.assign({line, visible: true, decorator: null}, track);
+        
+        line.on('click', () => this.centerTrack(track));
+
+        this.tracks.push(track);
+        this.refreshTrackTooltip(track);
+
+        document.getElementById('legendcontainer').style.display = 'block';
+
+        return track;
+    }
     
     addTrackToList(track) {
         let trackrow = document.createElement('tr');
@@ -442,11 +557,11 @@ export default class GpxMap {
     
     selectTrack(track) {
         track.decorator.setPatterns([
-            {offset: 400, repeat: 400, symbol: leaflet.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 1, color: 'red'}})}
+            {offset: 400, repeat: 400, symbol: leaflet.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: this.options.lineOptions.weight*2, color: 'red'}})}
         ]);
         track.line.setStyle({
             color: 'red',
-            weight: 3,
+            weight: this.options.lineOptions.weight*2,
             opacity: 1.0
         });
         track.line.bringToFront();
@@ -626,7 +741,9 @@ export default class GpxMap {
         document.getElementById('tracklist').getElementsByTagName('tbody')[0].innerHTML = '';
         this.tracks.forEach(track => {
             track.line.remove();
-            track.decorator.remove();
+            if (track.decorator) {
+                track.decorator.remove();
+            }
         });
         this.tracks = []
 

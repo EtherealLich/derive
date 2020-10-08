@@ -104,3 +104,74 @@ table#tracklist > tbody > tr:hover {
 .nowrap {
     white-space: nowrap;
 }
+
+
+#legendcontainer {
+    position: absolute;
+	right: 10px;
+    bottom: 20px;
+    width: 9.5em;
+	height: 40%;
+	z-index: 900;
+	vertical-align: bottom;
+	pointer-events: none;
+	display: inline-block;
+    background-color: hsla(0, 0%, 100%, .8);
+    display: none;
+}
+
+.legend {
+	font-family: arial, sans-serif;
+	color: #000;
+	font-size: 15px;
+	position: absolute;
+	bottom: 0;
+	height: 100%
+}
+
+.legend-header {
+    position: relative;
+    left: 30px;
+}
+
+.legend-inner {
+	position: absolute;
+	left: 30px;
+	bottom: 20px;
+	pointer-events: none;
+	height: 78%;
+	display: -webkit-box;
+	display: -ms-flexbox;
+	display: flex
+}
+
+.legend-inner .gradient {
+	opacity: 1;
+	width: 20px;
+	position: relative
+}
+
+.legend-inner .labels {
+	width: 10em;
+	position: relative
+}
+
+.legend-inner .labels .label {
+	position: absolute;
+	-webkit-transform: translateY(50%);
+	transform: translateY(50%)
+}
+
+.legend-inner .labels .label:before {
+	content: "\2013   "
+}
+
+#legend_PM10 .gradient {
+	background: -webkit-linear-gradient(bottom, #00796b, #00796b 16%, #f9a825 32%, #e65100 48%, #dd2c00 72%, #dd2c00 80%, #8c0084);
+	background: linear-gradient(0deg, #00796b 0, #00796b 16%, #f9a825 32%, #e65100 48%, #dd2c00 72%, #dd2c00 80%, #8c0084)
+}
+
+#legend_PM25 .gradient {
+	background: -webkit-linear-gradient(bottom, #00796b, #00796b 8%, #f9a825 16%, #e65100 32%, #dd2c00 48%, #dd2c00 72%, #8c0084 80%);
+	background: linear-gradient(0deg, #00796b 0, #00796A 8%, #f9a825 16%, #e65100 32%, #dd2c00 48%, #dd2c00 72%, #8c0084 80%);
+}
