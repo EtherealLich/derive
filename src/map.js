@@ -141,53 +141,19 @@ export default class GpxMap {
             }
         });
         
-        this.sidebar.addPanel({
-            id: 'routes2017',
-            title: 'Маршруты за 2017 год',
-            tab: '<small>2017</small>',
-            button: async () => {
-                this.clearMap();
-                await ui.loadgpx(this, '2017.gpx');
-                this.fitTimelineRange();
-            },
-            position: 'bottom'
-        });
-        
-        this.sidebar.addPanel({
-            id: 'routes2018',
-            title: 'Маршруты за 2018 год',
-            tab: '<small>2018</small>',
-            button: async () => {
-                this.clearMap();
-                await ui.loadgpx(this, '2018.gpx');
-                this.fitTimelineRange();
-            },
-            position: 'bottom'
-        });
-        
-        this.sidebar.addPanel({
-            id: 'routes2019',
-            title: 'Маршруты за 2019 год',
-            tab: '<small>2019</small>',
-            button: async () => {
-                this.clearMap();
-                await ui.loadgpx(this, '2019.gpx');
-                this.fitTimelineRange();
-            },
-            position: 'bottom'
-        });
-        
-        this.sidebar.addPanel({
-            id: 'routes2019',
-            title: 'Маршруты за 2020 год',
-            tab: '<small>2020</small>',
-            button: async () => {
-                this.clearMap();
-                await ui.loadgpx(this, '2020.gpx');
-                this.fitTimelineRange();
-            },
-            position: 'bottom'
-        });
+        ui.YEARS.forEach(year => {
+            this.sidebar.addPanel({
+                id: 'routes' + year,
+                title: 'Маршруты за ' + year + ' год',
+                tab: '<small>' + year + '</small>',
+                button: async () => {
+                    this.clearMap();
+                    await ui.loadgpx(this, year + '.gpx');
+                    this.fitTimelineRange();
+                },
+                position: 'bottom'
+            })
+        })
         
         this.sidebar.addPanel({
             id: 'tracklistpanel',
@@ -350,6 +316,10 @@ export default class GpxMap {
                 lineOptions.color = '#00ffff';
             }
         }
+
+        const hue = Math.floor(Math.random() * 100) * 137.508; // use golden angle approximation
+        track.color = 'hsl(' + hue + ',25%,50%)'
+        lineOptions.color = track.color
         
         let line = leaflet.polyline(track.points, lineOptions);
         let decorator = leaflet.polylineDecorator(line, {
@@ -436,7 +406,6 @@ export default class GpxMap {
         if (track.type) {tooltip += '<br>' + track.type + (track.equipment ? ': ' + track.equipment : '');}
         if (track.totaltime) {tooltip += '<br>Длительность: ' + moment.utc(track.totaltime*1000).format('H:mm');}
         if (track.totalElev) {tooltip += '<br>Общий подъем: ' + track.totalElev.toFixed(0) + ' м';}
-        if (track.trackImage) {tooltip += '<br><img style=\'max-width: 400px\' src=\'' + track.trackImage + '\'>';}
         track.line.bindTooltip(tooltip, {sticky: true, opacity:0.8});
     }
     
@@ -447,7 +416,7 @@ export default class GpxMap {
         track.line.setStyle({
             color: 'red',
             weight: 3,
-            opacity: 1.0
+            opacity: 0.5
         });
         track.line.bringToFront();
         track.line.openTooltip();
@@ -457,7 +426,10 @@ export default class GpxMap {
         track.decorator.setPatterns([
             {offset: 0, repeat: 0, symbol: leaflet.Symbol.arrowHead({pixelSize: 0, pathOptions: {fillOpacity: 0, weight: 0, color: 'red'}})}
         ]);
-        track.line.setStyle(this.options.lineOptions);
+        let options = this.options.lineOptions
+        options.color = track.color
+        track.line.setStyle(options);
+
         track.line.closeTooltip();
     }
     

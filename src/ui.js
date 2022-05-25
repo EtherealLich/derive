@@ -29,6 +29,8 @@ export const AVAILABLE_THEMES = [
     'Wikimedia'
 ];
 
+export const YEARS = [2017,2018,2019,2020,2021,2022]
+
 const MODAL_CONTENT = {
     help: `
 <h1>Интерактивная карта PIN-MIX-PERM</h1>
@@ -37,12 +39,10 @@ const MODAL_CONTENT = {
 
 <p>Вся обработка происходит в вашем браузере, ничего не передается и не сохраняется на сервере.</p>
     
-<p>
-    <a href="?map=2017.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2017 год</a><br/>
-    <a href="?map=2018.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2018 год</a><br/>
-    <a href="?map=2019.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2019 год</a><br/>
-    <a href="?map=2020.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за 2020 год</a>
-</p>
+<p>` +
+    YEARS.map(year => `<a href="?map=${year}.gpx">Интерактивная карта маршрутов PIN-MIX-PERM за ${year} год</a>`)
+    .join('<br/>') + 
+`</p>
 
 <p>Приложение базируется на коде Erik Price доступном на <a href="https://github.com/erik/derive">GitHub</a>.</p>
 `,

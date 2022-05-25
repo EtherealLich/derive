@@ -22,6 +22,20 @@ function extractGPXTracks(gpx) {
 
     const parsedTracks = [];
 
+    gpx.trk.sort((a, b) => {
+        function extractDate(trk) {
+            let name = trk.name && trk.name.length > 0 ? trk.name[0] : 'untitled'
+            let matches
+            if (matches = name.match(/(\d+)\_(\d+)\_(\d+)\_(.*)/i)) {
+                return matches[1] + '-' + matches[2] + '-' + matches[3]
+            } else if (matches = name.match(/(\d+)\.(\d+)\.(\d+)\ (.*)/i)) {
+                return matches[3] + '-' + matches[2] + '-' + matches[1]
+            } 
+        }
+
+        return new Date(extractDate(a)) - new Date(extractDate(b))
+    })
+
     gpx.trk && gpx.trk.forEach(trk => {
         let name = trk.name && trk.name.length > 0 ? trk.name[0] : 'untitled';
         let date;
@@ -29,22 +43,13 @@ function extractGPXTracks(gpx) {
         if (matches = name.match(/(\d+)\_(\d+)\_(\d+)\_(.*)/i)) {
             date = matches[3] + '.' + matches[2] + '.' + matches[1];
             name = matches[4];
-        }
+        } else if (matches = name.match(/(\d+)\.(\d+)\.(\d+)\ (.*)/i)) {
+            date = matches[1] + '.' + matches[2] + '.' + matches[3];
+            name = matches[4];
+        } 
         
         let src = trk.src && trk.src.length > 0 ? trk.src[0] : null;
         let desc = trk.desc && trk.desc.length > 0 ? trk.desc[0] : null;
-        let gpsiesUrl, trackImage;
-        for (let link of trk.link || []) {
-            if (link.type.includes('trackOnWeb')) {
-                gpsiesUrl = link['$']['href'];
-            }
-            /*if (link.type.includes('trackImage')) {
-                trackImage = link['$']['href'];
-            }*/
-            if (link.type.includes('elevationChartUrlTab')) {
-                trackImage = link['$']['href'];
-            }
-        }
         
         let timestamp;
         let totalElev = 0;
@@ -75,7 +80,7 @@ function extractGPXTracks(gpx) {
                 }
             }
             let totaltime = moment(endtime).diff(moment(starttime), 'seconds');
-            parsedTracks.push({timestamp, points, name, src, desc, gpsiesUrl, trackImage, totalElev, date, starttime, endtime, totaltime});
+            parsedTracks.push({timestamp, points, name, src, desc, totalElev, date, starttime, endtime, totaltime});
         });
     });
 
